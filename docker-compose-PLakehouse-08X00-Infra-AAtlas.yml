@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+#################### Apache Atlas ############################################################################
+## Net range 172.55.1.18X
+##############################################################################################################
+  atlas-server:
+    build: ./atlas
+    image: apache-atlas
+#    image: sburn/apache-atlas
+    container_name: apache-atlas
+    hostname: apache-atlas
+    tty:  true
+#    environment:
+#      - ATLAS_KICKSTART_AMUNDSEN=true 
+#    volumes:
+#      - ./atlas/resources/1000-Hadoop:/opt/atlas/models/1000-Hadoop
+    ports:
+      - "21000:21000"
+    networks:
+      lakehouse-net:
+        aliases: 
+          - apache-atlas
+        ipv4_address: 172.55.1.180
+##############################################################################################################
+
+networks:
+  lakehouse-net:
+    external: true
+    name: lakehouse-net
+
+
+

@@ -1,0 +1,34 @@
+version: '3.9'
+services:
+#################### HIVE Metastore ##########################################################################
+## Hive Metastore IP: 172.55.1.155
+##############################################################################################################
+
+  hivemetastore:
+    build: 
+        context: ./hivemetastore/
+        dockerfile: Dockerfile.hivemetastore
+    image: hivemetastore:latest
+    container_name: hivemetastore
+    hostname: hivemetastore
+    env_file:
+      - ./hivemetastore/conf/HiveMetastore.env
+    ports:
+      - '9083:9083' # Metastore Thrift
+    healthcheck:
+      test: nc -z localhost 9083 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - hivemetastore
+        ipv4_address: 172.55.1.155 
+
+
+networks:
+  lakehouse-net:
+    external: true
+    name: lakehouse-net

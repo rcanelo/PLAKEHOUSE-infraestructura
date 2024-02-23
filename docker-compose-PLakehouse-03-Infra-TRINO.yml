@@ -1,0 +1,72 @@
+version: '3.9'
+services:
+#################### Trino ###################################################################################
+## Net range 172.55.1.14X
+##############################################################################################################
+  trino-coordinator:
+    build: trino-coordinator/
+    container_name: trino-coordinator
+    hostname: trino-coordinator
+    image: trino-coordinator:latest
+    tty:  true 
+    volumes:
+      - ./conf/trino/catalog:/usr/local/trino/etc/catalog
+      - ./conf/trino/coordinator/config.properties:/usr/local/trino/etc/config.properties
+      - ./conf/trino/coordinator/node.properties:/usr/local/trino/etc/node.properties
+      - trino-data:/usr/local/trino/data
+    ports:
+      - "8090:8090"
+    command: http://trino-coordinator:8090 coordinator
+    networks:
+      lakehouse-net:
+        aliases: 
+          - trino-coordinator
+          - trino
+        ipv4_address: 172.55.1.140
+
+  trino-worker1:
+    build: trino-worker/
+    container_name: trino-worker1
+    hostname: trino-worker1
+    image: trino-worker1:latest
+    tty:  true 
+    volumes:
+      - ./conf/trino/catalog:/usr/local/trino/etc/catalog
+      - ./conf/trino/worker1/config.properties:/usr/local/trino/etc/config.properties
+      - ./conf/trino/worker1/node.properties:/usr/local/trino/etc/node.properties
+    ports:
+      - "8091:8081"
+    command: http://trino-coordinator:8090 trino-worker1
+    networks:
+      lakehouse-net:
+        aliases: 
+          - trino-worker1
+        ipv4_address: 172.55.1.141
+
+  trino-worker2:
+    build: trino-worker/
+    container_name: trino-worker2
+    hostname: trino-worker2
+    image: trino-worker2:latest
+    tty:  true 
+    volumes:
+      - ./conf/trino/catalog:/usr/local/trino/etc/catalog
+      - ./conf/trino/worker2/config.properties:/usr/local/trino/etc/config.properties
+      - ./conf/trino/worker2/node.properties:/usr/local/trino/etc/node.properties
+    ports:
+      - "8092:8081"
+    command: http://trino-coordinator:8090 trino-worker2
+    networks:
+      lakehouse-net:
+        aliases: 
+          - trino-worker2
+        ipv4_address: 172.55.1.142
+##############################################################################################################
+
+volumes:
+  trino-data:
+  
+networks:
+  lakehouse-net:
+    external: true
+    name: lakehouse-net

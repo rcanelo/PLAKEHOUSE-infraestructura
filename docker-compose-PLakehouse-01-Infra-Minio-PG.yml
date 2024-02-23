@@ -1,0 +1,178 @@
+#################### Espacio Direccionamiento IPs#############################################################
+## Net range DB Postgres, PgAdmin and Metastore(Hive): 172.55.1.15X
+## Net range MINIO: 172.55.1.16X
+##############################################################################################################
+
+## ################# Configuración común #####################################################################
+## Minio
+##############################################################################################################
+x-minio-common: &minio-common
+  image: minio/minio:latest
+  env_file:
+    - ./conf/minio/Minio.env
+  command: server --console-address ":9001" http://minio{1...2}/data{1...2}
+  expose:
+    - "9000"
+    - "9001"
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+    interval: 30s
+    timeout: 20s
+    retries: 3
+
+
+version: '3.9'
+services:
+#################### DB: Postgresql ##########################################################################
+## Net range DB Postgres, PgAdmin and Metastore(Hive): 172.55.1.15X
+## Net range MINIO: 172.55.1.16X
+##############################################################################################################
+  postgresql:
+    image: postgres:latest
+    hostname: postgresql
+    container_name: postgresql
+    env_file:
+      - ./conf/db/Postgres.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./conf/db/initdb/:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      lakehouse-net:
+        aliases: 
+          - postgresql
+        ipv4_address: 172.55.1.150  
+
+#################### DB: PgAdmin #####################
+  dbadmin:
+    image: dpage/pgadmin4:latest
+    container_name: dbadmin
+    hostname: dbadmin
+    tty:  true 
+    restart: always
+    env_file:
+      - ./conf/db/PgAdmin.env
+    ports:
+      - "5050:80"
+    volumes:
+      - dbamdin-data:/var/lib/pgadmin
+    healthcheck:
+      test: nc -z localhost 5050 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - dbadmin
+        ipv4_address: 172.55.1.151 
+
+######## Minio ###############
+  minio1:
+    <<: *minio-common
+    container_name: minio1    
+    hostname: minio1
+    tty:  true 
+    restart: always
+    volumes:
+      - data1-1:/data1
+      - data1-2:/data2
+    networks:
+      lakehouse-net:
+        aliases: 
+          - minio1
+        ipv4_address: 172.55.1.161
+
+  minio2:
+    <<: *minio-common
+    container_name: minio2
+    hostname: minio2
+    tty:  true 
+    restart: always
+    volumes:
+      - data2-1:/data1
+      - data2-2:/data2
+    networks:
+      lakehouse-net:
+        aliases: 
+          - minio2
+        ipv4_address: 172.55.1.162
+
+  minio:
+    image: nginx:1.19.2-alpine
+    container_name: minio
+    hostname: minio
+    tty:  true 
+    restart: always
+    volumes:
+      - ./conf/minio/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      lakehouse-net:
+        aliases: 
+          - minio
+        ipv4_address: 172.55.1.160
+    depends_on:
+      - minio1
+      - minio2
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://minio:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  mc:
+    image: minio/mc
+    container_name: mc
+    hostname: mc
+    env_file:
+      - ./conf/minio/Minio.env  
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add lakehouse http://minio:9000 minio minio123) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb lakehouse/warehouse;
+      /usr/bin/mc policy set public lakehouse/warehouse;
+      exit 0;
+      "
+#      /usr/bin/mc mb lakehouse/modelos-predictivos;
+#      /usr/bin/mc policy set public lakehouse/modelos-predictivos;
+#      /usr/bin/mc mb lakehouse/datasets-entrenamiento;
+#      /usr/bin/mc policy set public lakehouse/datasets-entrenamiento;
+#      /usr/bin/mc mb lakehouse/kafka;
+#      /usr/bin/mc policy set public lakehouse/kafka;
+
+    depends_on:
+      minio:
+        condition: service_healthy  
+    networks:
+      lakehouse-net:
+        aliases: 
+          - mc
+        ipv4_address: 172.55.1.163
+
+volumes:
+  pg_data: 
+  dbamdin-data:
+  data1-1:
+  data1-2:
+  data2-1:
+  data2-2:
+  
+networks:
+  lakehouse-net:
+    external: false
+    name: lakehouse-net
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.55.1.0/24

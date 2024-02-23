@@ -1,0 +1,177 @@
+trino http://localhost:8090 --catalog lakehouse
+
+######################
+SELECT * FROM system.metadata.table_properties;
+
+===============================================================================
+===============================================================================
+===============================================================================
+== SI FUNCIONA ================================================================
+
+##### PARQUET #######################
+##### Creado con la opción de Faust
+
+CREATE SCHEMA IF NOT EXISTS lakehouse.nyctfaust WITH (location= 's3a://nyct-bucket/');
+
+CREATE TABLE IF NOT EXISTS lakehouse.nyctfaust.nyct_parquet
+(id VARCHAR, 
+vendor_id INT, 
+pickup_datetime VARCHAR, 
+dropoff_datetime VARCHAR, 
+passenger_count VARCHAR, 
+pickup_longitude VARCHAR, 
+pickup_latitude VARCHAR, 
+dropoff_longitude VARCHAR, 
+dropoff_latitude VARCHAR, 
+store_and_fwd_flag VARCHAR, 
+trip_duration VARCHAR) 
+WITH 
+(external_location='s3a://nyct-bucket/',
+format='PARQUET')
+;
+
+SELECT * FROM lakehouse.nyctfaust.nyct_parquet;
+
+INSERT INTO  lakehouse.nyctfaust.nyct_parquet
+VALUES ('id0935429', 3, '2016-05-02 06:58:06', '2016-05-02 07:08:17', '1', 
+'-73.999092102050781', '40.745491027832031', 
+'-73.978561401367188', '40.762325286865234', 
+'N', '611');
+===============================================================================
+
+##### PARQUET #######################
+##### Creado con la opción de Kafka Connect (partitioned_by vendor_id)
+
+CREATE SCHEMA IF NOT EXISTS lakehouse.nyctparquet WITH (location= 's3a://kafka/topics/nyct-topic');
+
+CREATE TABLE IF NOT EXISTS lakehouse.nyctparquet.nyct_parquet
+(
+id VARCHAR,
+pickup_datetime VARCHAR, 
+dropoff_datetime VARCHAR, 
+passenger_count VARCHAR, 
+pickup_longitude VARCHAR, 
+pickup_latitude VARCHAR, 
+dropoff_longitude VARCHAR, 
+dropoff_latitude VARCHAR, 
+store_and_fwd_flag VARCHAR, 
+trip_duration VARCHAR,
+vendor_id INT
+) 
+WITH 
+(external_location='s3a://kafka/topics/nyct-topic/',
+format='PARQUET',
+partitioned_by = ARRAY['vendor_id'])
+;
+#CALL system.sync_partition_metadata('nyctparquet', 'nyct_parquet', 'ADD');
+#CALL system.sync_partition_metadata('nyctparquet', 'nyct_parquet', 'DROP');
+CALL system.sync_partition_metadata('nyctparquet', 'nyct_parquet', 'FULL');
+
+SELECT * FROM lakehouse.nyctparquet.nyct_parquet;
+
+INSERT INTO  lakehouse.nyctparquet.nyct_parquet
+VALUES ('id0935429', '2016-05-02 06:58:06', '2016-05-02 07:08:17', '1', 
+'-73.999092102050781', '40.745491027832031', 
+'-73.978561401367188', '40.762325286865234', 
+'N', '611',3);
+
+drop table lakehouse.nyctparquet.nyct_parquet;
+
+===============================================================================
+Con el bucket Warehouse y distintos catalog (Lakehouse=parquet)
+
+CREATE SCHEMA IF NOT EXISTS lakehouse.nyctparquet WITH (location= 's3a://warehouse/nyctparquet/');
+
+show schemas from lakehouse;
+
+show tables from lakehouse.nyctparquet;
+
+CREATE TABLE IF NOT EXISTS lakehouse.nyctparquet.nyct_pqt_01
+(id VARCHAR, 
+vendor_id INT, 
+pickup_datetime VARCHAR, 
+dropoff_datetime VARCHAR, 
+passenger_count VARCHAR, 
+pickup_longitude VARCHAR, 
+pickup_latitude VARCHAR, 
+dropoff_longitude VARCHAR, 
+dropoff_latitude VARCHAR, 
+store_and_fwd_flag VARCHAR, 
+trip_duration VARCHAR) 
+WITH 
+(external_location='s3a://warehouse/nyctparquet/',
+format='PARQUET')
+;
+INSERT INTO nyctparquet.nyct_pqt_01
+VALUES ('id0935429', 3, '2016-05-02 06:58:06', '2016-05-02 07:08:17', '1', 
+'-73.999092102050781', '40.745491027832031', 
+'-73.978561401367188', '40.762325286865234', 
+'N', '611');
+
+*******************************************************************************
+Con el bucket Warehouse y distintos catalog (lkhiceberg=iceberg)
+
+CREATE SCHEMA IF NOT EXISTS lkhiceberg.nycticeberg WITH (location= 's3a://warehouse/nycticeberg/');
+
+show schemas from lkhiceberg;
+
+show tables from lkhiceberg.nycticeberg;
+
+CREATE TABLE IF NOT EXISTS lkhiceberg.nycticeberg.nyct_ice_01
+(id VARCHAR, 
+vendor_id INT, 
+pickup_datetime VARCHAR, 
+dropoff_datetime VARCHAR, 
+passenger_count VARCHAR, 
+pickup_longitude VARCHAR, 
+pickup_latitude VARCHAR, 
+dropoff_longitude VARCHAR, 
+dropoff_latitude VARCHAR, 
+store_and_fwd_flag VARCHAR, 
+trip_duration VARCHAR);
+
+INSERT INTO nycticeberg.nyct_ice_01
+VALUES ('id0935429', 3, '2016-05-02 06:58:06', '2016-05-02 07:08:17', '1', 
+'-73.999092102050781', '40.745491027832031', 
+'-73.978561401367188', '40.762325286865234', 
+'N', '611');
+
+===============================================================================
+===============================================================================
+===============================================================================
+
+
+
+
+
+
+PRUEBAS:
+##### PARQUET #######################
+##### Creado con la opción de atlas
+
+CREATE SCHEMA IF NOT EXISTS lakehouse.atlaspru WITH (location= 's3a://warehouse/');
+
+CREATE TABLE IF NOT EXISTS lakehouse.atlaspru.aapru_parquet
+(id VARCHAR, 
+vendor_id INT, 
+pickup_datetime VARCHAR, 
+dropoff_datetime VARCHAR, 
+passenger_count VARCHAR, 
+pickup_longitude VARCHAR, 
+pickup_latitude VARCHAR, 
+dropoff_longitude VARCHAR, 
+dropoff_latitude VARCHAR, 
+store_and_fwd_flag VARCHAR, 
+trip_duration VARCHAR) 
+WITH 
+(external_location='s3a://warehouse/',
+format='PARQUET')
+;
+
+INSERT INTO  lakehouse.atlaspru.aapru_parquet
+VALUES ('id0935429', 3, '2016-05-02 06:58:06', '2016-05-02 07:08:17', '1', 
+'-73.999092102050781', '40.745491027832031', 
+'-73.978561401367188', '40.762325286865234', 
+'N', '611');
+
+SELECT * FROM lakehouse.atlaspru.aapru_parquet;

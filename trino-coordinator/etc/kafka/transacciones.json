@@ -1,0 +1,24 @@
+{
+    "tableName": "transacciones",
+    "topicName": "transacciones",
+    "message": {
+        "dataFormat": "json",
+        "fields": [
+            {
+                "name": "ID",
+                "mapping": "ID",
+                "type": "BIGINT"
+            },
+            {
+                "name": "MARCA_TIEMPO",
+                "mapping": "MARCA_TIEMPO",
+                "type": "VARCHAR"
+            },
+			{
+                "name": "CODE_FRACTAL",
+                "mapping": "CODE_FRACTAL",
+                "type": "VARCHAR"
+            }
+        ]
+    }
+}

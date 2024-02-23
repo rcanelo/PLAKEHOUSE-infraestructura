@@ -1,0 +1,116 @@
+version: '3.9'
+services:
+#################### Admundsen ############################################################################
+## Net range 172.55.1.17X
+##############################################################################################################
+  amundsensearch:
+    build:
+      context: ./admundsen
+      dockerfile: Dockerfile.search.public
+    container_name: amundsensearch
+    hostname: amundsensearch
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5001:5001
+    environment:
+      - PROXY_ENDPOINT=es_amundsen_atlas
+    healthcheck:
+      test: nc -z localhost 5001 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - amundsensearch
+        ipv4_address: 172.55.1.175
+  
+  amundsenmetadata:
+    build:
+      context: ./admundsen
+      dockerfile: Dockerfile.metadata.public
+    container_name: amundsenmetadata
+    hostname: amundsenmetadata
+    ports:
+      - 5002:5002
+    environment:
+      - CREDENTIALS_PROXY_USER=admin
+      - CREDENTIALS_PROXY_PASSWORD=admin
+      - PROXY_HOST=apache-atlas
+      - PROXY_PORT=21000
+      - PROXY_ENCRYPTED=False
+      - PROXY_CLIENT=ATLAS
+      - METADATA_SVC_CONFIG_MODULE_CLASS=metadata_service.config.AtlasConfig
+    healthcheck:
+      test: nc -z localhost 5002 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - amundsenmetadata
+        ipv4_address: 172.55.1.176
+
+  amundsenfrontend:
+    build:
+      context: ./admundsen
+      args:
+        SEARCHSERVICE_BASE: http://amundsensearch:5001
+        METADATASERVICE_BASE: http://amundsenmetadata:5002
+      dockerfile: Dockerfile.frontend.local
+    container_name: amundsenfrontend
+    hostname: amundsenfrontend
+    depends_on:
+      - amundsenmetadata
+      - amundsensearch
+    ports:
+      - 5000:5000
+    environment:
+      - METADATASERVICE_BASE=http://amundsenmetadata:5002
+      - SEARCHSERVICE_BASE=http://amundsensearch:5001
+    healthcheck:
+      test: nc -z localhost 5000 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - amundsenfrontend
+        ipv4_address: 172.55.1.170
+
+  elasticsearch:
+    image: elasticsearch:6.8.13
+    container_name: es_amundsen_atlas
+    hostname: es_amundsen_atlas
+    ports:
+      - 9200:9200
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: nc -z localhost 9200 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 30
+    networks:
+      lakehouse-net:
+        aliases: 
+          - es_amundsen_atlas
+        ipv4_address: 172.55.1.179
+##############################################################################################################
+
+networks:
+  lakehouse-net:
+    external: true
+    name: lakehouse-net
+
+
+

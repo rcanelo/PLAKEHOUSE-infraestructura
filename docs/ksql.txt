@@ -1,0 +1,8 @@
+
+ksql http://ksqldb-server:8088
+
+
+CREATE STREAM nyctstream (id VARCHAR, vendor_id INT, pickup_datetime VARCHAR, dropoff_datetime VARCHAR, passenger_count VARCHAR, pickup_longitude VARCHAR, pickup_latitude VARCHAR, dropoff_longitude VARCHAR, dropoff_latitude VARCHAR, store_and_fwd_flag VARCHAR, trip_duration VARCHAR) WITH (kafka_topic='nyct-topic', value_format='avro', partitions=1);
+
+
+SELECT * FROM nyctstream;
